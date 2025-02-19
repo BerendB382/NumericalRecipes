@@ -39,8 +39,7 @@ def linear_interp(x_new, x_values, y_values):
 # plt.show()
 
 def crout(A):
-    '''Overwrites a matrix by its LU composition.
-    Wat fout gaat: alpha en a zijn niet hetzelfde'''
+    '''Overwrites a matrix by its LU composition.'''
     assert A.shape == A.T.shape
     alpha = np.identity(len(A))
     for j in range(len(A)):
