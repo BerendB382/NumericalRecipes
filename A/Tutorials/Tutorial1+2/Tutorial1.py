@@ -77,8 +77,6 @@ class interpolator():
 
         return inter
 
-def bisection(data):
-   return 0
 
 # %%
 interp = interpolator(image)
