@@ -70,12 +70,80 @@ print(A)
 
 print(crout(A))
 
-# P, L, U = lu(A)
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+import matplotlib.image as mpimg
 
-# print('P scipy:\n', P)
-# print('L scipy:\n', L)
-# print('U scipy:\n', U)
-# print('scipy check:\n', P @ L @ U)
+img = mpimg.imread('A/Tutorials/Tutorial3/petiti_luigi.jpg')
+grey_img = np.dot(img[..., :3], [0.640, 0.595, 0.155]) # Rec601 hack to turn greyscale
+
+U, S, Vh = np.linalg.svd(grey_img, full_matrices=False)
+print(U.shape, np.diag(S).shape, Vh.shape)
+remake_img = U @ np.diag(S) @ Vh
+
+# plt.imshow(grey_img, cmap='gray')
+# plt.show()
+# plt.imshow(remake_img, cmap='gray')
+# plt.show()
+
+size_lim = 1000
+
+U, S, Vh = U[:size_lim, :size_lim], S[:size_lim], Vh[:size_lim, :size_lim]
+print(U.shape, np.diag(S).shape, Vh.shape)
+compressed_img = U @ np.diag(S) @ Vh
+
+# plt.imshow(compressed_img, cmap='gray')
+# plt.show()
+
+# EXERCISE 2
+class Matrix():
+    def __init__(self, n_rows, n_cols):
+        self.n_rows = n_rows
+        self.n_cols = n_cols
+        self.arr = np.zeros((n_rows, n_cols))
+
+    def row_swap(self, i, j):
+        if i != j:
+            row_i = np.copy(self.arr[i, :])
+            self.arr[i, :] = self.arr[j, :]
+            self.arr[j, :] = row_i 
+    
+    def LU_comp(self):
+        return crout(self.arr)
+    
+    def solve_sys_GJ(self):
+        for col_idx in range(self.n_cols-1):
+            pivot_idx = np.argmax(self.arr[:, col_idx])
+            if math.isclose(self.arr[pivot_idx, col_idx], 0):
+                break
+            self.row_swap(pivot_idx, col_idx)
+            self.arr[col_idx, :] = self.arr[col_idx, :]/self.arr[col_idx, col_idx]
+
+            # use the pivot row to reduce all other rows with non-zero elements in column i.
+            for row_idx in np.arange(col_idx+1, self.n_rows):
+                if row_idx >= self.n_rows or col_idx >= self.n_cols:
+                    break
+                if not math.isclose(self.arr[row_idx, col_idx], 0):
+                    self.arr[row_idx, :] -= self.arr[col_idx, :]*self.arr[row_idx, col_idx]
+        return self.arr
+                
+
+
+
+
+
+A = Matrix(5, 5)
+A.arr = np.array([[3, 8, 1, -12, -4],
+                  [1, 0, 0, -1, 0],
+                  [4, 4, 3, -40, -3],
+                  [0, 2, 1, -3, -2],
+                  [0, 1, 0, -12, 0]])
+
+gj_a = A.solve_sys_GJ()
+print(np.array(gj_a))
+
+
 
 
         
