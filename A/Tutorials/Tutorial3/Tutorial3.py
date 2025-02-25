@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.image import imread
 from scipy.linalg import lu
+import copy
 
 def bisection2(x, x_values):
     low, high = 0, len(x_values) - 1
@@ -67,8 +68,16 @@ A = np.array([[1, -4, 2],
               [2, 6, 8]])
 
 print(A)
+A_orig = copy.deepcopy(A)
 
-print(crout(A))
+A_decomp = crout(A)
+U = np.triu(A_decomp, k=0)
+L = np.tril(A_decomp, k = -1) + np.identity(len(A_decomp))
+
+print(A_decomp)
+print(U)
+print(L)
+print(A_orig -(L @ U))
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -92,6 +101,7 @@ size_lim = 1000
 U, S, Vh = U[:size_lim, :size_lim], S[:size_lim], Vh[:size_lim, :size_lim]
 print(U.shape, np.diag(S).shape, Vh.shape)
 compressed_img = U @ np.diag(S) @ Vh
+
 
 # plt.imshow(compressed_img, cmap='gray')
 # plt.show()
@@ -142,6 +152,7 @@ A.arr = np.array([[3, 8, 1, -12, -4, 2],
 
 gj_a = A.solve_sys_GJ()
 print(np.array(gj_a))
+
 
 
 
