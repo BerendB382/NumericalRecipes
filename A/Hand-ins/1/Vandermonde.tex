@@ -62,9 +62,11 @@ Using the timeit module, we execute the code from 2a, 2b and 2c 150 times each. 
 
 \lstinputlisting[firstline = 19, lastline = 21]{Vandermonde_output.txt}
 
-We see that the LU decomposition method is quite quick, and the error cancelling doesn't add that much more time. Neville's algorithm is the clear loser when it comes to efficiency. When we take into account accuracy, though, it becomes apparent that Neville's algorithm does have significantly lower errors in this application. A possible cause for error with the LU decomposition method is roundoff. 
+We see that the LU decomposition method is quite quick, and the error cancelling doesn't add that much more time. Neville's algorithm is the clear loser when it comes to efficiency. When we take into account accuracy, though, it becomes apparent that Neville's algorithm does have significantly lower errors in this application. A possible cause for error with the LU decomposition method is roundoff: as we made use of the simple Crout decomposition, no smart pivoting is done to reduce divisions by very small numbers. 
 
 We also see that iteration on the LU method takes a small amount of extra time compared to the un-corrected LU method. We also see little to no improvement in error. It is probably the case that, given our implementation of the LU decomposition, we are already at the lowest possible error achievable by that method, and as such we have little to gain with the error cancelling algorithm. 
+
+All in all, we have shown the differences between our implementations of the discussed interpolation algorithms. If a low error is of utmost importance while computation time is not as much of a constraint, Neville's algorithm provides the best fit to the points. However, if you want to save time, LU decomposition offers a more efficient way to quickly find a good fit, as long as you are willing to accept a higher error.
 
 
 
