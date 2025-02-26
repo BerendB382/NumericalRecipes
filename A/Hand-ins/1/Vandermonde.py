@@ -6,9 +6,7 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import copy
-from time import perf_counter
-
-os.chdir('A/Hand-ins/1')
+import timeit
 
 def crout(A):
     m, n = A.shape
@@ -64,21 +62,11 @@ for i in range(m):
 
 A_orig = copy.deepcopy(A)
 # now set up the polynomial function!
-B = np.zeros([5, 5])
-for i in range(5):
-    for j in range(5):
-        B[i, j] = x[i]**j
 
 coeffs, crout_LU = get_coeffs(y, A)
 xx=np.linspace(x[0],x[-1],1001) #x values to interpolate at
 yya = polynomial(xx, coeffs)
-
-# Check crout 
-# A_decomp = crout(A)
-# U = np.triu(A_decomp, k=0)
-# L = np.tril(A_decomp, k = -1) + np.identity(len(A_decomp))
-
-# print(A_orig - (L @ U))
+ya= polynomial(x, coeffs)
 
 # Now we'd like to implement neville's algorithm.
 
@@ -96,31 +84,25 @@ def neville(datax, datay, x_interp):
         error_est.append(np.abs(y[0] - y[1]))
     return y_interp, error_est 
     
+yyb, yyb_err= neville(x, y, xx)
+yb, yb_err= neville(x, y, x)
+
+
 # Let's implement the error canceling algorithm.
 
 def error_cancel(A_orig, crout_LU, y, coeffs, iterations):
-    for i in range(iterations):
+    for _ in range(iterations):
         v = A_orig @ coeffs - y
         fw_result = forward_sub2(crout_LU, v)
         coeff_corr = backward_sub2(crout_LU, fw_result)
         coeffs = coeffs - coeff_corr
     return coeffs
 
-#The plotting code below assumes you've given the interpolated
-#values for 2a suffix "a", those for 2b "b", and those for 2c 
-#"c1" and "c10" – feel free to change these
-#Note that you interpolate to xx for the top panel but to
-#x for the bottom panel (since we can only compare the accuracy
-#to the given points, not in between them)
-ya= polynomial(x, coeffs)
-yyb, yyb_err= neville(x, y, xx)
-yb, yb_err= neville(x, y, x)
-
 c1_coeffs = error_cancel(A_orig, crout_LU, y, coeffs, iterations=1)
 yyc1= polynomial(xx, c1_coeffs) 
 yc1= polynomial(x, c1_coeffs)
-c10_coeffs = error_cancel(A_orig, crout_LU, y, coeffs, iterations=10)
 
+c10_coeffs = error_cancel(A_orig, crout_LU, y, coeffs, iterations=10)
 yyc10= polynomial(xx, c10_coeffs)
 yc10= polynomial(x, c10_coeffs)
 
@@ -167,3 +149,29 @@ plt.savefig('my_vandermonde_sol_2c.png',dpi=600)
 
 #Don't forget to caption your figures to describe them/
 #mention what conclusions you draw from them!
+
+# Now, finally, time the different methods.
+
+def problem_2a():
+    coeffs, crout_LU = get_coeffs(y, A) 
+    yya = polynomial(xx, coeffs)
+
+def problem_2b():
+    yyb, yyb_err= neville(x, y, xx) 
+
+def problem_2c():
+    coeffs, crout_LU = get_coeffs(y, A)
+    c10_coeffs = error_cancel(A_orig, crout_LU, y, coeffs, iterations=10)
+    yyc10= polynomial(xx, c10_coeffs)
+
+number = 150
+two_a_time = timeit.timeit(lambda : problem_2a(), number = number)
+
+two_b_time = timeit.timeit(lambda : problem_2b(), number = number)
+
+two_c_time = timeit.timeit(lambda : problem_2c(), number = number)
+
+print(f'Time for {number} iterations of 2a:', two_a_time)
+print(f'Time for {number} iterations of 2b:', two_b_time)
+print(f'Time for {number} iterations of 2c:', two_c_time)
+
