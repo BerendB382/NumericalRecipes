@@ -31,7 +31,7 @@ def romberg(func, a, b, order):
     r = np.zeros(order)
     
     # calculate r0
-    h = (b - a)/N
+    h = (b - a)
     r[0] = 0.5 * h * (func(a) - func(b))
     Np = 1
     for i in np.arange(1, order-1):
