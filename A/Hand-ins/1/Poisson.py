@@ -13,6 +13,8 @@ def log_factorial(k):
         result = np.sum(np.log(k_values))
     return np.float32(result)
 
+# using log space makes us less likely to have overflow errors. 
+
 def log_poisson(lamb, k):
     '''Computes the log of the poisson distribution for a positive mean lambda.'''
     assert lamb > 0

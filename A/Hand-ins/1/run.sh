@@ -29,7 +29,6 @@ echo "Generating the pdf"
 
 pdflatex Nieuwhof.tex
 bibtex Nieuwhof.aux
-pdflatex Nieuwhof.tex
-pdflatex Nieuwhof.tex
+
 
 

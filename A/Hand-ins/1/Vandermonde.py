@@ -12,9 +12,9 @@ def crout(A):
     m, n = A.shape
     for i in range(m):
         for j in range(n):
-            if i >= j:
+            if i >= j: # if i > j, add the alpha[i, j] element
                 A[i, j] = A[i, j] - np.sum(A[i, :j]*A[:j, j])
-            else:
+            else: # else, edit matrix beta
                 A[i, j] = (A[i, j] - np.sum(A[i, :i]*A[:i, j]))/A[i, i]
         
     return A
@@ -53,7 +53,7 @@ data=np.genfromtxt(os.path.join(sys.path[0],"Vandermonde.txt"),comments='#',dtyp
 x=data[:,0]
 y=data[:,1]
 
-# Construct the matrix.
+# Construct the Vandermonde matrix.
 A = np.zeros([20, 20])
 m, n = A.shape
 for i in range(m):
@@ -61,8 +61,8 @@ for i in range(m):
         A[i, j] = x[i]**j
 
 A_orig = copy.deepcopy(A)
-# now set up the polynomial function!
 
+# now set up the polynomial function!
 coeffs, crout_LU = get_coeffs(y, A)
 xx=np.linspace(x[0],x[-1],1001) #x values to interpolate at
 yya = polynomial(xx, coeffs)
@@ -81,7 +81,7 @@ def neville(datax, datay, x_interp):
             for i in range(M-k):
                 y[i] = ((x - datax[i+k])*y[i] + (datax[i] - x)*y[i+1]) / (datax[i] - datax[i+k])
         y_interp.append(y[0])
-        error_est.append(np.abs(y[0] - y[1]))
+        error_est.append(np.abs(y[0] - y[1])) # also save an error estimate given by the last improvement
     return y_interp, error_est 
     
 yyb, yyb_err= neville(x, y, xx)
@@ -91,7 +91,7 @@ yb, yb_err= neville(x, y, x)
 # Let's implement the error canceling algorithm.
 
 def error_cancel(A_orig, crout_LU, y, coeffs, iterations):
-    for _ in range(iterations):
+    for _ in range(iterations):     # We solve the system Ac - y = v for v, to find corrections on the coefficients
         v = A_orig @ coeffs - y
         fw_result = forward_sub2(crout_LU, v)
         coeff_corr = backward_sub2(crout_LU, fw_result)
@@ -106,7 +106,6 @@ c10_coeffs = error_cancel(A_orig, crout_LU, y, coeffs, iterations=10)
 yyc10= polynomial(xx, c10_coeffs)
 yc10= polynomial(x, c10_coeffs)
 
-#Don't forget to output the coefficients you find with your LU routine
 print('Coefficients found with LU method (a):\n', coeffs)
 
 print('Coefficients found with 1 iteration of LU correction (c):\n', c1_coeffs)
