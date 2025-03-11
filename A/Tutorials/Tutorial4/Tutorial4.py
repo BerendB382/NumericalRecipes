@@ -27,7 +27,7 @@ simp_result = simpson(2000, x_squared, 1, 5)
 print(square_integrated)
 print(simp_result)
 
-def romberg(func, a, b, order):
+def romberg_interval(func, a, b, order):
     r = np.zeros(order)
     
     # calculate r0
@@ -52,10 +52,17 @@ def romberg(func, a, b, order):
 
     return r
 
-romberg_result = romberg(x_squared, 1, 5, 15)
+def romberg(func, x, order):
+    '''with x a linspace'''
+    result = 0
+    for i in range(len(x)-1):
+        a = x[i]
+        b = x[i+1]
+        result += romberg_interval(func, a, b, order)[0]
+    return result
 x = np.linspace(1, 5, 20)
-trap_result = np.trapezoid(x_squared(x), x)
-
+trap_result = np.trapz(x_squared(x), x)
+romberg_result = romberg(x_squared, x, order=20)
 print(romberg_result)
 print(trap_result)
 

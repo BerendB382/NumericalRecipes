@@ -24,38 +24,44 @@ print(sorted_arr1)
 def mergesort(a):
     
     N = len(a)
-    if len(a) > 1:
-        mid_idx = N//2
-        left = copy.deepcopy(a[:mid_idx])
-        right = copy.deepcopy(a[mid_idx:])
+    idx = np.arange(0, N, 1)
+    def mergesort_helper(idx):
+        if len(idx) > 1:
+            mid_idx = len(idx)//2
+            left = copy.deepcopy(idx[:mid_idx])
+            right = copy.deepcopy(idx[mid_idx:])
 
-        # recursively sort the left and right arrays 
-        mergesort(left) 
-        mergesort(right)
-        i, j, k = 0, 0, 0
-        # go through the arrays and check which element of is the smallest between them, then add that one to a
-        while i < len(left) and j < len(right):
-            if left[i] < right[j]:
-                a[k] = left[i]
+            # recursively sort the left and right arrays 
+            mergesort_helper(left) 
+            mergesort_helper(right)
+            i, j, k = 0, 0, 0
+            # go through the arrays and check which element of is the smallest between them, then add that one to a
+            while i < len(left) and j < len(right):
+                if a[left[i]] < a[right[j]]:
+                    idx[k] = left[i]
+                    i += 1
+                else:
+                    idx[k] = right[j]
+                    j += 1
+                k += 1
+            # if left or right still hold elements after one of the lists is ran through, put them into a in order
+            while i < len(left):
+                idx[k] = left[i]
                 i += 1
-            else:
-                a[k] = right[j]
+                k += 1
+            while j < len(right):
+                idx[k] = right[j]
                 j += 1
-            k += 1
-        # if left or right still hold elements after one of the lists is ran through, put them into a in order
-        while i < len(left):
-            a[k] = left[i]
-            i += 1
-            k += 1
-        while j < len(right):
-            a[k] = right[j]
-            j += 1
-            k += 1
-    return a
+                k += 1
+    
+    mergesort_helper(idx)
+    return idx
 
 print('using mergesort:')
 rand_arr2 = np.random.randint(0, 100, size = 10)
 print(rand_arr2)
-sorted_arr2 = mergesort(rand_arr2)
+sort_idx2 = mergesort(rand_arr2)
+sorted_arr2 = rand_arr2[sort_idx2]
 print(sorted_arr2)
+print(sort_idx2)
 
