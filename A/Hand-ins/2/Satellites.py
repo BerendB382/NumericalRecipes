@@ -184,10 +184,14 @@ phi = 2*np.pi * Pu2
 relative_radius = np.linspace(xmin, xmax, 10000) 
 analytical_function = N(relative_radius, new_A, Nsat, a, b, c) / Nsat
 
-max_val = np.max(analytical_function)
+# find the maximum value by sorting
+sorting_idx2 = mergesort(analytical_function)
+sorted_analytical = analytical_function[sorting_idx2]
+max_val2 = sorted_analytical[-1]
+
 # Do rejection sampling for r.
 Pu3 = 10**rng_float(44, N_generate*10, np.log10(xmin), np.log10(xmax))
-Pu4 = rng_float(33, N_generate*10, 0, max_val)
+Pu4 = rng_float(33, N_generate*10, 0, max_val2)
 P_x = N(Pu3, new_A, Nsat, a, b, c) / Nsat 
 
 rej_result = []
