@@ -70,12 +70,12 @@ def equilibrium1(T,Z,Tc,psi):
     return psi*Tc*k - (0.684 - 0.0416 * np.log(T/(1e4 * Z*Z)))*T*k 
 
 # test and visualize first
-temps = np.linspace(1, 10e7, 1000)
+temps = np.linspace(1, 1e7, 1000)
 eqs = equilibrium1(temps, Z, Tc, psi)
-plt.plot(temps, eqs)
+# plt.plot(temps, eqs)
 # plt.show()
 
-brac1 = [1, 10e7] # K 
+brac1 = [1, 1e7] # K 
 print(brac1)
 midpoint1 = 0.5e7 # mid point of the bracket interval
 
@@ -93,6 +93,23 @@ def equilibrium2(T,Z,Tc,psi, nH, A, xi):
     return (psi*Tc - (0.684 - 0.0416 * np.log(T/(1e4 * Z*Z)))*T - .54 * ( T/1e4 )**.37 * T)*k*nH*aB + A*xi + 8.9e-26 * (T/1e4)
 
 # 2b
+A = 5e-10 # erg
+xi = 1e-15 # s**-1
+brac2 = [1, 1e15] # K
+
+for ne in [1e-4, 1, 1e4]:
+    print('for ne = ', ne)
+    root1, num_it1 = bisection(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 100)
+    print('root and number of iterations')
+    print('using bisection:', root1, num_it1)
+
+    root2, num_it2 = secant(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 100)
+    print('using secant method:', root2, num_it2)
+
+    root3, num_it3 = false_position(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 100)
+    print('using false position method:,', root3, num_it3)
+
+
 
 
 
