@@ -198,7 +198,9 @@ rej_result = []
 for i in range(N_generate*10):
     if Pu4[i] < P_x[i]:
         rej_result.append(Pu3[i])
-rej_result = np.array(rej_result)[:10000] # take the first 10000 elements
+        if len(rej_result) == 10000:
+            break
+rej_result = np.array(rej_result) # take the first 10000 elements
 
 #21 edges of 20 bins in log-space
 edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 21)
