@@ -64,7 +64,7 @@ k=1.38e-16 # erg/K
 aB = 2e-13 # cm^3 / s
 Z = 0.015 # unitless
 psi = 0.929 # unitless
-Tc = 10e4 # K
+Tc = 1e4 # K
 
 # here no need for nH nor ne as they cancel out
 def equilibrium1(T,Z,Tc,psi):
@@ -73,8 +73,8 @@ def equilibrium1(T,Z,Tc,psi):
 # test and visualize first
 temps = np.linspace(1, 1e7, 1000)
 eqs = equilibrium1(temps, Z, Tc, psi)
-plt.plot(temps, eqs)
-plt.show()
+# plt.plot(temps, eqs)
+# plt.show()
 
 brac1 = [1, 1e7] # K 
 print(brac1)
@@ -84,12 +84,15 @@ print('------------2a--------------')
 root1, num_it1 = bisection(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
 print('root and number of iterations')
 print('using bisection:', root1, num_it1)
+print('function evaluated at root:', equilibrium1(root1, Z, Tc, psi))
 
 root2, num_it2 = secant(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
 print('using secant method:', root2, num_it2)
+print('function evaluated at root:', equilibrium1(root2, Z, Tc, psi))
 
 root3, num_it3 = false_position(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
 print('using false position method:,', root3, num_it3)
+print('function evaluated at root:', equilibrium1(root3, Z, Tc, psi))
 
 def equilibrium2(T,Z,Tc,psi, nH, A, xi):
     return (psi*Tc - (0.684 - 0.0416 * np.log(T/(1e4 * Z*Z)))*T - .54 * ( T/1e4 )**.37 * T)*k*nH*aB + A*xi + 8.9e-26 * (T/1e4)
@@ -100,13 +103,18 @@ print('---------------2b----------------')
 A = 5e-10 # erg
 xi = 1e-15 # s**-1
 brac2 = [1, 1e15] # K
+k=1.38e-16 # erg/K
+aB = 2e-13 # cm^3 / s
+Z = 0.015 # unitless
+psi = 0.929 # unitless
+Tc = 1e4 # K
 
 # test and visualize first
 temps = np.linspace(1, 1e15, 1000)
-ne = 1e15
+ne = 1e5
 eqs = equilibrium2(temps, Z, Tc, psi, ne, A, xi)
-plt.plot(temps, eqs)
-plt.show()
+# plt.plot(temps, eqs)
+# plt.show()
 
 for ne in [1e-4, 1, 1e4]:
     print('\nfor ne = ', ne)
@@ -127,19 +135,16 @@ print('-------------------------------')
 def smallest_ne():
     ne = 1e-4
     root1, num_it1 = bisection(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 1e-10, frac_tol = 1e-10, max_iter = 100)
+    return root1, num_it1
 
 def middle_ne():
     ne = 1
     root2, num_it2 = secant(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 1e-10, frac_tol = 1e-10, max_iter = 100)
-
+    return root2, num_it2
 def big_ne():
     ne = 1e4
     root2, num_it2 = secant(equilibrium2, brac2, Z, Tc, psi, ne, A, xi, abs_tol = 1e-10, frac_tol = 1e-10, max_iter = 100)
-# TODO: time the different methods and select the quickest one. you can rule out false position for the last one.
-# from the data right now: use secant for second and third, use bisection for the first.
-
-
-
+    return root2, num_it2
 
 small_ne_time = timeit.timeit(lambda : smallest_ne(), number = 1)
 mid_ne_time = timeit.timeit(lambda : middle_ne(), number = 1)
@@ -148,5 +153,13 @@ big_ne_time = timeit.timeit(lambda : big_ne(), number = 1)
 print('Bisection for smallest n took:', small_ne_time)
 print('Secant for middle ne took:', mid_ne_time)
 print('Secant for biggest ne took:', big_ne_time)
+
+temps = np.linspace(1, 1e15, 1000)
+ne = 1e-4
+eqs = equilibrium2(temps, Z, Tc, psi, ne, A, xi)
+plt.grid()
+plt.vlines(smallest_ne()[0], -4e-15, 1e-15, color='black')
+plt.plot(temps, eqs)
+plt.show()
 
 
