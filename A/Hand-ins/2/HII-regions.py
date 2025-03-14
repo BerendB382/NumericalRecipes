@@ -154,12 +154,20 @@ print('Bisection for smallest n took:', small_ne_time)
 print('Secant for middle ne took:', mid_ne_time)
 print('Secant for biggest ne took:', big_ne_time)
 
-temps = np.linspace(1, 1e15, 1000)
+def eq2_med(T,Z = 0.015, Tc=1e4, psi= 0.929,A=5e-10,xi=1e-15,nH=1e-4): 
+    return (psi*Tc - (0.684 - 0.0416 * np.log(T/(1e4 * Z*Z)))*T - .54 *( T/1e4 )**.37 * T)*k*nH*aB + A*xi + 8.9e-26 * (T/1e4)
+
+
+temps = np.linspace(1, 1e7, 1000)
 ne = 1e-4
+eq2 = eq2_med(temps)
 eqs = equilibrium2(temps, Z, Tc, psi, ne, A, xi)
+eq1 = equilibrium1(temps, Z, Tc, psi)
 plt.grid()
 plt.vlines(smallest_ne()[0], -4e-15, 1e-15, color='black')
-plt.plot(temps, eqs)
+plt.plot(temps, eqs, label = 'berend')
+plt.plot(temps, eq2, label='xavier', linestyle = '--')
+plt.legend()
 plt.show()
 
 
