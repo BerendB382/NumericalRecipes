@@ -1,7 +1,31 @@
-\section{Exercise 2: Vandermonde Matrix}
+\section{Exercise 2: HII-regions}
 
-In this section we look at exercise 2
+In this section we look at exercise 2, concerning equilibrium temperatures in HII-regions under various healing and cooling influences. We make use of the functions provided, equilibrium1 and equilibrium2. The code for the full exercise is given below:
 
 \lstinputlisting[language=Python]{HII-regions.py}
+
+\subsection{2a: A simple HII-region}
+For this exercise, we have to find the root of the equilibrium1 function that was provided. We time and test 3 root finding algorithms, to find the fastest one. The relevant code is given below:
+
+\lstinputlisting[language=Python, firstline = 1, lastline = 111]{HII-regions.py}
+
+We use a bracket of $ [1, 10^7 ] $ K for all three of them. The output is given below:
+
+\lstinputlisting[firstline = 1, lastline = 16]{HII-regions_output.txt}
+
+As we can see, both bisection and false position find the root, while secant diverges. We also see the number of iterations, next to the value of the root. We see that the time taken by bisection is the smallest, and we should use bisection in this case.
+
+\subsection{2b: A more complex HII-region}
+We now have to find the root of the equilibrium2 function, which is a little more complicated. We evaluate all three methods for each value of $n_e$, and at the end we print how fast the best method converges for the different values.
+
+\lstinputlisting[firstline=17, lastline=49]{HII-regions_output.txt}
+
+For small $n_e$, secant diverges. Bisection and false position both find the root, but bisection is fastest. We choose bisection.
+
+For middle $n_e$, secant does not diverge. It actually finds the root in only 11 iterations. Bisection also works, but with more iterations, and false position takes a very long time to converge. It takes about 100,000 iterations to reach a good minimum, which makes it the slowest.
+
+For largest $n_e$, secant again finds the root the fastest. False position is still the slowest, and bisection is pretty good. 
+
+We conclude that we should choose bisection for the first value $n_e$, and secant for the other two values.
 
 

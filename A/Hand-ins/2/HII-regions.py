@@ -77,22 +77,38 @@ eqs = equilibrium1(temps, Z, Tc, psi)
 # plt.show()
 
 brac1 = [1, 1e7] # K 
-print(brac1)
 midpoint1 = 0.5e7 # mid point of the bracket interval
 print('------------2a--------------')
+def time_bisection():
+    root1, num_it1 = bisection(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
+    return root1, num_it1
+
+def time_secant():
+    root2, num_it2 = secant(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
+    return root2, num_it2
+
+def time_false_position():
+    root3, num_it3 = false_position(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
+    return root3, num_it3
 
 root1, num_it1 = bisection(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
-print('root and number of iterations')
+bisection_time = timeit.timeit(lambda : time_bisection(), number = 1)
+print('\nroot and number of iterations')
 print('using bisection:', root1, num_it1)
 print('function evaluated at root:', equilibrium1(root1, Z, Tc, psi))
+print('time taken:', bisection_time)
 
 root2, num_it2 = secant(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
-print('using secant method:', root2, num_it2)
+secant_time = timeit.timeit(lambda : time_secant(), number = 1)
+print('\nusing secant method:', root2, num_it2)
 print('function evaluated at root:', equilibrium1(root2, Z, Tc, psi))
+print('time taken:', secant_time)
 
 root3, num_it3 = false_position(equilibrium1, brac1, Z, Tc, psi, abs_tol = 0.01, frac_tol = 1e-8, max_iter = 50)
-print('using false position method:,', root3, num_it3)
+false_position_time = timeit.timeit(lambda : time_false_position(), number = 1)
+print('\nusing false position method:,', root3, num_it3)
 print('function evaluated at root:', equilibrium1(root3, Z, Tc, psi))
+print('time_taken', false_position_time)
 
 def equilibrium2(T,Z,Tc,psi, nH, A, xi):
     return (psi*Tc - (0.684 - 0.0416 * np.log(T/(1e4 * Z*Z)))*T - .54 * ( T/1e4 )**.37 * T)*k*nH*aB + A*xi + 8.9e-26 * (T/1e4)
