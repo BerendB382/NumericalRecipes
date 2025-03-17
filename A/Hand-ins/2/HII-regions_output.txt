@@ -1,0 +1,43 @@
+[1, 10000000.0]
+------------2a--------------
+root and number of iterations
+using bisection: 32539.12576294411 30
+function evaluated at root: 3.2802042676833513e-20
+maximum secant interations reached
+using secant method: nan 50
+function evaluated at root: nan
+using false position method:, 32539.126737497554 23
+function evaluated at root: 0.0
+---------------2b----------------
+
+for ne =  0.0001
+root and number of iterations
+using bisection: 160647887532832.94 36
+function evaluated at root: 1.3118954069051732e-26
+maximum secant interations reached
+using secant method: nan 100
+function evaluated at root: nan
+using false position method:, 160647887536816.06 124
+function evaluated at root: 0.0
+
+for ne =  1
+root and number of iterations
+using bisection: 33861.300234646915 69
+function evaluated at root: 1.5869127818352802e-35
+using secant method: 33861.300235178554 11
+function evaluated at root: -9.183549615799121e-41
+using false position method:, 33861.298551236556 100000
+function evaluated at root: 5.026513802461895e-32
+
+for ne =  10000.0
+root and number of iterations
+using bisection: 10525.886018968453 70
+function evaluated at root: 1.9976650564114478e-31
+using secant method: 10525.88601966122 10
+function evaluated at root: 2.3553508877120796e-37
+using false position method:, 10525.885169143065 100000
+function evaluated at root: 2.4525554870977876e-28
+-------------------------------
+Bisection for smallest n took: 0.00016573599714320153
+Secant for middle ne took: 9.690500155556947e-05
+Secant for biggest ne took: 8.376799814868718e-05

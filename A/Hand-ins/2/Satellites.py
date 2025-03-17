@@ -5,9 +5,6 @@ import copy
 def n(x, A, Nsat, a, b, c):
     return A*Nsat*((x/b)**(a-3))*np.exp(-(x/b)**c)
 
-def n_deriv(x, A, Nsat, a, b, c):
-    return A*Nsat/b * ((a-3)*(x/b)**(a-4) - c*(x/b)**(a+c-4))*np.exp(-(x/b)**c)
-
 def N(x, A, Nsat, a, b, c):
     return n(x, A, Nsat, a, b, c)*4*np.pi*x**2
 
@@ -47,6 +44,27 @@ def romberg(func, x, order, *args):
         b  = x[i+1]
         result += romberg_interval(func, a, b, order, *args)[0]
     return result
+
+A=1. # to be computed
+Nsat=100
+a=2.4
+b=0.25
+c=1.6
+
+# We want to integrate the function (with A = 1) to find what we need to set A to 
+# to find <Nsat> = 100. A will be 100 divided by the value of the integral.
+
+# Because n(x) is radially symmetric, we can use the fact that 
+# dV = 4pi*r**2 dr to write down the integral.
+
+x = np.linspace(0.00001, 5, 15)
+integ_result = romberg(N, x, 10, A, 100, a, b, c)
+new_A = Nsat / integ_result
+print('A found by integral normalisation:', new_A)
+
+check = romberg(N, x, 10, new_A, Nsat, a, b, c)
+check = Nsat / check
+print('Sanity check:', check)
 
 def xor_shift(seed, a1 = 21, a2 = 35, a3 = 4):
     '''Performs 64bit xor shift on the seed number.'''
@@ -89,12 +107,6 @@ def rng_float(seed, size, a, b):
     floats = a + (b-a)*(ints / (2**32))
     return floats
 
-def to_cartesian(r, theta, phi):
-    x = r * np.sin(phi) * np.cos(theta)
-    y = r * np.sin(phi) * np.sin(theta)
-    z = r * np.cos(phi)
-    return x, y, z
-
 def mergesort(a):
     N = len(a)
     idx = np.arange(0, N, 1)
@@ -130,55 +142,10 @@ def mergesort(a):
     mergesort_helper(idx)
     return idx
 
-def central_diff(x, func, h, *args):
-    deriv = (func(x + h, *args) - func(x - h, *args)) / (2*h)
-    return deriv
 
-def ridder(x, func, h, d, *args, order = 5, tol = 1e-8):
-    r = np.zeros(order)
-    oneDeeth = 1 / d
-    r[0] = central_diff(x, func, h, *args)
-    for o in range(1, order):
-        h = h * oneDeeth
-        r[o] = central_diff(x, func, h, *args)
-    # now iterate to combine the previous 
-    
-    for j in range(1, order):
-        for i in range(order-1-j):
-            r[i] = (d**(2*j) * r[i+1] - r[i]) / (d**(2*j) - 1)
-            # TODO: Make sure Ridder stops at the right order.
-    return r[0]
-
-A=1. # to be computed
-Nsat=100
-a=2.4
-b=0.25
-c=1.6
-
-# We want to integrate the function (with A = 1) to find what we need to set A to 
-# to find <Nsat> = 100. A will be 100 divided by the value of the integral.
-
-# Because n(x) is radially symmetric, we can use the fact that 
-# dV = 4pi*r**2 dr to write down the integral.
-
-x = np.linspace(0.00001, 5, 15)
-integ_result = romberg(N, x, 10, A, 100, a, b, c)
-new_A = Nsat / integ_result
-print('A found by integral normalisation:', new_A)
-
-check = romberg(N, x, 10, new_A, Nsat, a, b, c)
-check = Nsat / check
-print('Sanity check:', check)
 #Plot of histogram in log-log space with line (question 1b)
 xmin, xmax = 10**-4, 5
 N_generate = 10000
-
-# First sample a uniform distribution for r, theta and phi
-Pu1 = rng_float(42, N_generate, 0, 1)
-Pu2 = rng_float(41, N_generate, 0, 1)
-
-theta = np.pi*(1 - 2*Pu1)
-phi = 2*np.pi * Pu2
 
 # Make the analytical function
 relative_radius = np.linspace(xmin, xmax, 10000) 
@@ -220,7 +187,6 @@ ax.legend()
 plt.savefig('my_solution_1b.png', dpi=600)
 plt.close()
 
-#Cumulative plot of the chosen galaxies (1c)
 # We'll achieve this by generating a random sequence using our random number generator.
 # We will then sort the array and thus generate a shuffle index which we then apply to
 # the samples from above.
@@ -241,6 +207,29 @@ ax.set(xscale='log', xlabel='Relative radius',
 plt.savefig('my_solution_1c.png', dpi=600)
 
 # Now we will calculate dn(x)/dx at x = 1. 
+
+def n_deriv(x, A, Nsat, a, b, c):
+    return A*Nsat/b * ((a-3)*(x/b)**(a-4) - c*(x/b)**(a+c-4))*np.exp(-(x/b)**c)
+
+def central_diff(x, func, h, *args):
+    deriv = (func(x + h, *args) - func(x - h, *args)) / (2*h)
+    return deriv
+
+def ridder(x, func, h, d, *args, order = 5, tol = 1e-8):
+    r = np.zeros(order)
+    oneDeeth = 1 / d
+    r[0] = central_diff(x, func, h, *args)
+    for o in range(1, order):
+        h = h * oneDeeth
+        r[o] = central_diff(x, func, h, *args)
+    # now iterate to combine the previous 
+    
+    for j in range(1, order):
+        for i in range(order-1-j):
+            r[i] = (d**(2*j) * r[i+1] - r[i]) / (d**(2*j) - 1)
+    return r[0]
+
+#Cumulative plot of the chosen galaxies (1c)
 x = 1 
 h = 0.2
 
