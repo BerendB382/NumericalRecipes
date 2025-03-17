@@ -1,0 +1,6 @@
+------------2a--------------
+
+root and number of iterations
+using bisection: 32539.12576294411 30
+function evaluated at root: 3.2802042676833513e-20
+time taken: 9.606199455447495e-05

@@ -1,0 +1,5 @@
+A found by integral normalisation: 9.211900153463198
+Sanity check: 1.0000000000000007
+derivative of n with respect to x
+with Ridder's method: -0.6264877290898574
+Analytically: -0.6264877290898926
