@@ -101,48 +101,48 @@ def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, lamb=1e-3, w
         if delta_chi/len(p) < 0.0001:
             return p, j
     
-# a = 2
-# b = 1
-# c = 2
+a = 2
+b = 1
+c = 2
 
-# x = np.linspace(0.5, 4, 20)
+x = np.linspace(0.5, 4, 20)
 
-# xs = np.array([x for _ in range(1000)])
+xs = np.array([x for _ in range(1000)])
 
-# data = f(xs, a, b, c)
-# np.random.seed(42)
-# gauss_noise = np.random.normal(0, 2, (1000, 20))
+data = f(xs, a, b, c)
+np.random.seed(42)
+gauss_noise = np.random.normal(0, 2, (1000, 20))
 
-# noisy_data = data + gauss_noise
+noisy_data = data + gauss_noise
 
-# plt.plot(xs[0], data[0], label='model data')
-# plt.scatter(xs, noisy_data, color = 'red', label='noisy data')
-# plt.title('')
-# plt.xlabel('x')
-# plt.ylabel('y')
-# # plt.show()
-# plt.close()
+plt.plot(xs[0], data[0], label='model data')
+plt.scatter(xs, noisy_data, color = 'red', label='noisy data')
+plt.title('')
+plt.xlabel('x')
+plt.ylabel('y')
+# plt.show()
+plt.close()
 
 
-# plt.title('Many fits')
-# plt.xlabel('x')
-# plt.ylabel('y')
+plt.title('Many fits')
+plt.xlabel('x')
+plt.ylabel('y')
 
-# initial_guess = [3, 2, 1]
-# linny = np.linspace(0.5, 4, 50)
-# params_arr = np.zeros((len(xs), len(initial_guess)))
-# for i in range(len(xs)):
-#     params, _ = levenberg_marquardt(xs[i], noisy_data[i], initial_guess, 2, f)
-#     new_y = f(linny, *params)
-#     plt.plot(linny, new_y, color='black', alpha=0.05)
-#     params_arr[i] = params
+initial_guess = [3, 2, 1]
+linny = np.linspace(0.5, 4, 50)
+params_arr = np.zeros((len(xs), len(initial_guess)))
+for i in range(len(xs)):
+    params, _ = levenberg_marquardt(xs[i], noisy_data[i], initial_guess, 2, f)
+    new_y = f(linny, *params)
+    plt.plot(linny, new_y, color='black', alpha=0.05)
+    params_arr[i] = params
 
-# avg_params = np.mean(params_arr, axis = 0)
-# avg_y = f(linny, *avg_params)
-# plt.plot(xs[0], data[0], label = 'model data')
-# plt.plot(linny, avg_y, linestyle = '--', color='red', label='average fit')
-# plt.legend()
-# plt.savefig('many_fits.pdf', dpi = 600)
+avg_params = np.mean(params_arr, axis = 0)
+avg_y = f(linny, *avg_params)
+plt.plot(xs[0], data[0], label = 'model data')
+plt.plot(linny, avg_y, linestyle = '--', color='red', label='average fit')
+plt.legend()
+plt.savefig('many_fits.pdf', dpi = 600)
     
 smfdata = np.fromfile('A/Tutorials/Tutorial8/smfdata.txt', sep = '\n')
 print(smfdata)
