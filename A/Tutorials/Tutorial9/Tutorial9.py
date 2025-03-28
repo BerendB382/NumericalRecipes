@@ -56,7 +56,7 @@ def f_deriv_a(x):
     return x
 
 def f_deriv_b(x):
-    return 1
+    return np.ones_like(x) # must return the same shape as x!!!
 
 def calculate_alpha(x_data, p, sigma, lamb):
     n_param = len(p)
@@ -64,7 +64,7 @@ def calculate_alpha(x_data, p, sigma, lamb):
     funclist = [f_deriv_a, f_deriv_b]
     for k in range(n_param):
         for j in range(n_param):
-            alpha[k, j] = np.sum((funclist[k](x_data)*funclist[j](x_data)))
+            alpha[k, j] = np.sum(funclist[k](x_data)*funclist[j](x_data))
     for i in range(n_param):
         alpha[i, i] *= (1 + lamb)
     return alpha/sigma**2
@@ -96,10 +96,7 @@ def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, metric_func,
     j = 0
     p = initial_guess
     while True:
-        alpha = alpha_daan(x_data, sigma, lamb)
-        print(alpha)
         alpha = calculate_alpha(x_data, p, sigma, lamb)
-        print(alpha)
         beta = calculate_beta(x_data, y_data, p, sigma, func, weight_func)
         prev_p = np.copy(p)
         dp, _ = get_coeffs(beta, alpha)
@@ -108,7 +105,7 @@ def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, metric_func,
         new_metric = metric_func(x_data, y_data, sigma, func, *new_p)
 
         delta_metric = abs(new_metric - metric)
-        print(delta_metric)
+
         if new_metric >= metric:
             lamb *= w 
             metric = metric
@@ -147,9 +144,9 @@ plt.plot(x, f(x, *initial_guess), label='initial_guess', color='blue')
 plt.xlabel('x')
 plt.ylabel('y')
 
-p_chi, num_it_chi = levenberg_marquardt(x, y, initial_guess, 1, f, chi_squared, chi, lamb = 0.001, acc = 110)
+p_chi, num_it_chi = levenberg_marquardt(x, y, initial_guess, 1, f, chi_squared, chi, lamb = 0.001, acc = 0.01)
 print('num iterations chi:', num_it_chi)
-p_lor, num_it_lor = levenberg_marquardt(x, y, p_chi, 1, f, lorentzian, lor, lamb = 0.001, acc = 11)
+p_lor, num_it_lor = levenberg_marquardt(x, y, p_chi, 1, f, lorentzian, lor, lamb = 0.001, acc = 0.000001)
 print('num iterations lor:', num_it_lor)
 
 plt.plot(x, f(x, *p_lor), label='fit w/ lorentzian', color='red')
