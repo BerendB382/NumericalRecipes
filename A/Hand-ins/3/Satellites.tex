@@ -1,0 +1,69 @@
+\section{Exercise 1: Satellite galaxies, part 2}
+
+In this section, the solutions to the first exercise are presented. 
+
+Our script is given by:
+\lstinputlisting[language=Python]{Satellites2.py}
+
+\subsection{1a. Finding the maximum of the number density satellite profile}
+The relevant code for this exercise is given here:
+\lstinputlisting[language=Python, firstline=4, lastline=67]{Satellites2.py}
+
+In order to find a the maximum of $N(x)$, we first bracket the root using the find bracket function. As two initial guesses, we give 1 and 5, corresponding to the range where we expect to find the maximum by visual inspection. After finding a three-point bracket, we use golden section search to find a maximum (the minimum of the negative function, technically). In the output below, $x$ and $N(x)$ at the minimum are presented.
+
+
+\lstinputlisting[firstline=1, lastline=2]{satellite_output.txt}
+
+\subsection{1b. Fitting a chi-squared using Levenberg-Marquardt}
+For this subquestion, we bin our radial data and use a Levenberg-Marquardt fitting routine to fit a chi-squared on the data. The relevant code is given below:
+\lstinputlisting[language=Python, firstline=69, lastline=188]{Satellites.py}
+
+We bin our data in log space, so that the bins are of equal width when we plot them and the function in log space. We choose the range from INSERT RANGE. We take 40 radial bins.
+
+We bin our data using the bin_data function, which normalizes the bins by the amount of halos as well as the bin widths. Importantly, this means that the function we fit will also have to be normalized to this.
+
+
+\begin{figure}[h!]
+\label{fig:1b}
+\caption{In red, the analytical distribution that we are supposed to sample from is plotted. The blue bars correspond to the logarithmic bins given, and their heights are the number of samples per bin. The bars follow the distribution nicely.}
+\centering
+\includegraphics[width=0.7\textwidth]{my_solution_1b.png}
+\end{figure}
+
+The fits can be seen above. As we can see, the fit isn't exactly right but it gets close. It should also be noted that the $\chi^2$ values are a factor of $\frac{1}{n_{halo}}$ off, because of the way we bin the data. 
+
+\subsection{1c. Minimizing the Poisson log-likelihood}
+In this subquestion, we write down the Poisson log-likelihood, and use the Metropolis-Hastings algorithm to perform Monte Carlo Markov Chain log likelihood minimization. The relevant code is given below:
+
+\lstinputlisting[language=Python, firstline=189, lastline=207]{Satellites.py}
+
+The fits produced by this method are given below:
+
+Sadly, our model does not converge properly. To give an idea, we plot the walkers for the MCMC in this figure. As apparent, many walkers seem stuck in their original position or get stuck rather quickly. I'm not sure what the reason is precisely, though it might have something to do with the way I set up the likelihood. We use a flat prior, where negative values are forbidden for A, a, b, c. I'm using the same function as previously.
+
+We use 100 walkers that each take 500 steps. In my plots, the walkers stabilized after about 100 steps, so in calculating the mean of the posterior distribution, this burn-in phase is removed.
+
+\begin{figure}[h!]
+\label{fig:1c}
+\caption{We see that the number of galaxies within a radius is strictly increasing, which means the array is sorted correctly.}
+\centering
+\includegraphics[width=0.7\textwidth]{my_solution_1c.png}
+\end{figure}
+
+\subsection{1d. Derivative of n(x)}
+In this section, we calculate the derivative $d n(x)/dx$ at $x=1$ numerically. We used Ridder's algorithm to find the derivative, as seen in the code below.
+
+\lstinputlisting[language=Python, firstline = 209, lastline = 240]{Satellites.py}
+
+The output is given here:
+
+\lstinputlisting[firstline=3, lastline = 5]{satellite_output.txt}
+
+
+
+
+
+
+
+
+

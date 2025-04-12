@@ -212,7 +212,7 @@ def get_A(x, Nsat, a, b, c):
 
 def bin_data(radius, nhalo, xmin, xmax):
     nhaloTh = 1 / nhalo
-    edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 21)
+    edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 51)
     binned_data, edges = np.histogram(radius, bins=edges)
     binwidths = np.diff(edges)
     N_per_halo = binned_data * nhaloTh / binwidths # normalize by dividing by the bin widths 
@@ -221,18 +221,30 @@ def bin_data(radius, nhalo, xmin, xmax):
     Nsat = len(radius) / nhalo
     return N_per_halo, edges, Nsat
 
-def z(x_data, y_data, sigma, model, *args):
-    sigma_log = sigma / (y_data * np.log(10))
-    return (np.log10(y_data) - np.log10(model(x_data, *args))) / sigma_log
+def edges_to_bins(edges):
+    edges = np.asarray(edges)
+    return np.column_stack((edges[:-1], edges[1:]))
 
-def chi_squared(x_data, y_data, sigma, model, *args):
-    return np.sum(z(x_data, y_data, sigma, model, *args)**2)
 
-def chi(x_data, y_data, sigma, model, deriv, *args):
-    sigma_log = sigma / (y_data * np.log(10))
-    return np.sum(2*deriv(x_data, *args)*(z(x_data, y_data, sigma, model, *args)) / sigma_log)
+def N_integrated(edges, A, Nsat, a, b, c):
+    result = np.zeros_like(edges[:,0])
+    binwidths = np.diff(edges)
+    inverse_binwidths = 1 / binwidths[:, 0]
+    for i in range(len(result)):
+        xmin, xmax = edges[i]
+        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] * inverse_binwidths[i]
+    return result 
 
-def calculate_alpha(x_data, p, sigma, lamb):
+def z(x_data, y_data, edges, sigma, model, *args):
+    return (y_data - model(edges, *args)) / sigma
+
+def chi_squared(x_data, y_data, edges, sigma, model, *args):
+    return np.sum(0.5*z(x_data, y_data, edges, sigma, model, *args)**2)
+
+def chi(x_data, y_data, edges, sigma, model, deriv, *args):
+    return np.sum(deriv(x_data, *args)*(z(x_data, y_data, edges, sigma, model, *args)) / sigma)
+
+def calculate_alpha(x_data, y_data, p, sigma, lamb):
     n_param = len(p)-2
     alpha = np.zeros((n_param, n_param))
     funclist = [n_deriv_a, n_deriv_b, n_deriv_c]
@@ -243,23 +255,24 @@ def calculate_alpha(x_data, p, sigma, lamb):
         alpha[i, i] *= (1 + lamb)
     return alpha
 
-def calculate_beta(x_data, y_data, p, sigma, func, weight):
+def calculate_beta(x_data, y_data, edges, p, sigma, func, weight):
     n_param = len(p)-2
     beta = np.zeros(n_param)
     xderivlist = [n_deriv_a, n_deriv_b, n_deriv_c]
     for k in range(n_param):
-        beta[k] = 0.5*weight(x_data, y_data, sigma, func, xderivlist[k], *p) # * -1
+        beta[k] = 0.5*weight(x_data, y_data, edges, sigma, func, xderivlist[k], *p)
     return beta
 
-def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, metric_func, weight_func, lamb=1e-3, w = 10, acc = 0.1):
-    # TODO: Calculate the metric in log space.
-    metric = metric_func(x_data, y_data, sigma, func, *initial_guess)
+def levenberg_marquardt(x_data, y_data, edges, initial_guess, sigma, func, metric_func, weight_func, lamb=0.001, w = 10, acc = 0.1):
+    bins = edges_to_bins(edges)
+    metric = metric_func(x_data, y_data, bins, sigma, func, *initial_guess)
     lamb = lamb
     j = 0
     p = initial_guess
     while True:
-        alpha = calculate_alpha(x_data, p, sigma, lamb)
-        beta = calculate_beta(x_data, y_data, p, sigma, func, weight_func)
+        # print(metric)
+        alpha = calculate_alpha(x_data, y_data, p, sigma, lamb)
+        beta = calculate_beta(x_data, y_data, bins, p, sigma, func, weight_func)
         prev_p = np.copy(p)
         dp = np.zeros_like(prev_p) 
         dp[2:], _ = get_coeffs(beta, alpha) 
@@ -267,7 +280,7 @@ def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, metric_func,
         # recalculate A based on new a,b,c
         new_p[0] = get_A(x_data, Nsat, *new_p[2:])
 
-        new_metric = metric_func(x_data, y_data, sigma, func, *new_p)
+        new_metric = metric_func(x_data, y_data, bins, sigma, func, *new_p)
 
         delta_metric = abs(new_metric - metric)
 
@@ -280,115 +293,391 @@ def levenberg_marquardt(x_data, y_data, initial_guess, sigma, func, metric_func,
             p = new_p
             lamb /= w
         j += 1
-        if j > 1000:
+        if j > 200:
             print('max iterations reached')
             return p, j
         if abs(delta_metric/len(initial_guess)) < acc:
             print(f'accuracy threshold reached in {j} iterations')
             return p, j
 
-def fit_data_set(filename, initial_guess, acc=0.001):
+def fit_data_set(filename, initial_guess, acc=0.000001):
     xmin, xmax = 1e-4, 4
     radius, nhalo = readfile(filename)
     N_per_halo, edges, Nsat = bin_data(radius, nhalo, xmin, xmax)
+    edges1 = edges.copy()
+    edges2 = edges_to_bins(edges1)
     bin_centers = (edges[:-1] + edges[1:]) * 0.5
     
-    plt.stairs(N_per_halo, edges, label='binned_data')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.ylim(1e-4, 1e-1)
-    plt.xlabel('bins (log)')
-    plt.ylabel(f'Counts per halo (log)')
-    plt.title(f'Loglog plot for {filename}, Nsat = {Nsat}')
+    # # plot the binned data
+    # plt.stairs(N_per_halo, edges, label='binned_data')
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.xlabel('bins (log)')
+    # plt.ylabel(f'Counts per halo (log)')
+    # plt.title(f'Loglog plot for {filename}, Nsat = {Nsat}')
     
     # create the input parameters.
     A = get_A(bin_centers, Nsat, *initial_guess)
     params_i = [A, Nsat, *initial_guess]
+    sigma = np.sqrt(N_per_halo)
 
-    # x data will be 
-    p, j = levenberg_marquardt(bin_centers, N_per_halo, params_i, np.sqrt(N_per_halo), N, chi_squared, chi, acc=acc)
-    print(p)
-    test_x = 10**np.linspace(np.log10(xmin), np.log10(xmax), 100)
-    plt.plot(test_x, N(test_x, *params_i), label='initial guess')
-    plt.plot(test_x, N(test_x, *p), label='fit')
-    plt.legend()
-    plt.show()
-    chi2_min = chi_squared(bin_centers, N_per_halo, np.sqrt(N_per_halo), n, *p)
-    return Nsat, p, chi2_min, bin_centers, edges
+    # remove bins that are zero
+    nonzero_mask = N_per_halo > 0
+    bin_centers_clipped = bin_centers[nonzero_mask]
+    N_per_halo_clipped = N_per_halo[nonzero_mask]
+    sigma_clipped = sigma[nonzero_mask]
+    edges_clipped = edges[np.append(nonzero_mask, True)]
+
+    # the actual fitting
+    p, j = levenberg_marquardt(bin_centers_clipped,
+                             N_per_halo_clipped,
+                             edges_clipped,
+                             params_i, sigma_clipped, N_integrated, chi_squared, chi, 
+                             w=20,
+                             lamb = 1e-4,
+                             acc=acc)
+    edges = edges_to_bins(edges_clipped)
+
+    # # Test the fit
+    # test_x = 10**np.linspace(np.log10(xmin), np.log10(xmax), 100)
+    # plt.plot(bin_centers, N_integrated(edges2, *params_i), label='initial guess')
+    # plt.plot(bin_centers, N_integrated(edges2, *p), label='fit')
+    # plt.ylim((1e-5, 1e2))
+    # plt.legend()
+    # plt.show()
+    # plt.close()
+
+    # See what the minimum chi squared is
+    chi2_min = chi_squared(bin_centers_clipped, N_per_halo_clipped, edges, sigma_clipped, N_integrated, *p)
+
+    return Nsat, N_per_halo, p, chi2_min, bin_centers, edges1
+
+
 
 #Call this function as: 
-fit_data_set('satgals_m11.txt', [2.4, 0.25, 1.6], acc=1e-40)
+# Nsat, N_per_halo, p, chi2_min, bin_centers, edges = fit_data_set('satgals_m12.txt', [2.4, 0.25, 1.6], acc=1e-40)
+
 # Plot of binned data with the best fit (question 1b.4 and 1c)
 # As always, feel free to replace by your own plotting routines if you want
-xmin, xmax = 1e-4, 5. # replace by your choices
-n_bins = 100 # replace by your binning
-edges = np.exp(np.linspace(np.log(xmin), np.log(xmax), n_bins+1))
 
 fig1b, ax = plt.subplots(3,2,figsize=(6.4,8.0))
+datalist = ['satgals_m11.txt', 'satgals_m12.txt', 'satgals_m13.txt', 'satgals_m14.txt', 'satgals_m15.txt']
+ylims = [(1e-5, 1), (1e-4, 1e1), (1e-4, 1e2), (1e-3, 1e2), (1e-1, 1e4)]
+p_list_b = np.zeros((5, 5))
+min_chi2_list_b = np.zeros(5)
 for i in range(5):
-    Nsat = 100 # replace by actual appropriate number for mass bin i
-    x_radii = np.random.rand(10000) * (xmax-xmin) # replace by actual data for mass bin i
-    Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for mass bin i integrated per radial bin
-    binned_data=np.histogram(x_radii,bins=edges)[0]/Nsat
+    init_guess = [2, 0.8, 1.6]
+    Nsat, N_per_halo, p, chi2_min, bin_centers, edges1 = fit_data_set(datalist[i], init_guess, acc=0.0001)
+    edges = edges_to_bins(edges1)
+    A_initial = get_A(bin_centers, Nsat, *init_guess)*2
+    p_initial = [A_initial, Nsat, *init_guess]
     row=i//2
     col=i%2
-    ax[row,col].step(edges[:-1], binned_data, where='post', label='binned data')
-    ax[row,col].step(edges[:-1], Ntilda, where='post', label='best-fit profile')
-    ax[row,col].set(yscale='log', xscale='log', xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
+
+    p_list_b[i] = p
+    min_chi2_list_b[i] = chi2_min
+    
+    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p) - N_per_halo, where='post', label='residuals')
+    ax[row,col].step(edges1[:-1], N_per_halo, where='post', label='binned data')
+    # ax[row,col].step(bin_centers, N(bin_centers, *p), where='post', label='best-fit N')
+    ax[row,col].step(edges1[:-1], N_integrated(edges, *p), where='post', label='best-fit integrated N')
+    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p_initial), where='post', label='initial guess')
+    ax[row,col].set(yscale='log', xscale='log', ylim = ylims[i], xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
+    print(f'------------------------------\nFor file {datalist[i]}:')
+    print('Using Levenberg-Marquardt to fit a chi squared')
+    print(f'N_sat = ', Nsat)
+    print(f'a = {p[2]}\nb = {p[3]}\nc = {p[4]}')
+    print(f'A = {p[0]}')
+    print(f'Minimum chi squared value = {chi2_min}')
+    print(f'Minimum chi squared corrected for degrees of freedom = {chi2_min / (len(bin_centers) - len(p))}')
+
 ax[2,1].set_visible(False)
 plt.tight_layout()
 handles,labels=ax[2,0].get_legend_handles_labels()
 plt.figlegend(handles, labels, loc=(0.65,0.15))
 plt.savefig('my_solution_1b.png', dpi=600)
 
+# 1c. Let's do an MCMC.
+def xor_shift(seed, a1 = 21, a2 = 35, a3 = 4):
+    '''Performs 64bit xor shift on the seed number.'''
+    state = np.uint64(seed)
+    a1 = np.uint64(a1)
+    a2 = np.uint64(a2)
+    a3 = np.uint64(a3)
+
+    state = state ^ (state >> a1)
+    state = state ^ (state << a2)
+    state = state ^ (state >> a3)
+    return state
+
+def mult_w_carry(seed, a = 4294957665):
+    '''Performs multiply with carry, base 2**32'''
+    state = np.uint64(seed)
+    a = np.uint64(a)
+
+    state = a*(state & np.uint64(2**32 - 1)) + (state >> np.uint64(32))
+    number = state & np.uint64(2**32 - 1)
+
+    return number, state
+
+def rng_int(seed, size):
+    state = np.uint64(seed)
+    result = np.zeros(size)
+    for i in range(size):
+        xor_state = xor_shift(state)
+        if xor_state < 2**32:
+            number, mult_state = mult_w_carry(xor_state)
+        else:
+            number, mult_state = mult_w_carry(xor_state & np.uint64(2**32 - 1))
+        state = mult_state
+        result[i] = number
+
+    return result
+
+def rng_float(seed, size, a, b):
+    ints = rng_int(seed, size)
+    floats = a + (b-a)*(ints / (2**32))
+    return floats
+
+def box_muller(x1, x2):
+    r = np.sqrt(-2 * np.log(x1))
+    theta = 2 * np.pi * x2
+    z1 = r * np.cos(theta)
+    z2 = r * np.sin(theta)
+    return z1, z2
+
+def multivariate_normal(mean, sigma):
+    # instead of sigma, there should be the covariance matrix, but since i don't know anything
+    # about the parameters, i'm just going to say they have variance of 1.
+    # there is probably a nice way to do this, but i just don't know.
+    n_walkers, n_params = mean.shape
+    
+    # get independent random samples
+    z = np.zeros((n_walkers, n_params))
+    u1_list = rng_float(i+413, n_walkers*n_params, 0, 1).reshape(n_walkers, n_params)
+    u2_list = rng_float(i+13, n_walkers*n_params, 0, 1).reshape(n_walkers, n_params)
+    for j in range(0, n_params, 2):
+        u1 = u1_list[:, j]
+        u2 = u2_list[:, j]
+        z1, z2 = box_muller(u1, u2)
+        z[:, j] = z1
+        if j + 1 < n_params:
+            z[:, j+1] = z2
+    # go back to multivariate normal 
+    samples = mean + sigma * z
+    return samples
+
+def q(p):
+    n_walkers = p.shape
+    sigma = np.ones_like(p) * 0.1
+    new_p = multivariate_normal(p, sigma)
+    # ensure Nsat stays the same
+    new_p[:, 1] = p[:, 1]
+    return new_p
+
+def lnL(ydata, edges, func, p):
+    lambda_i = np.array([np.array(func(edges, *params)) for params in p])
+    lambda_i[lambda_i <= 0] = 1e-40 # make sure no invalid values are entered into the log
+    ydata[ydata == 0] = 1e-40
+    likelihood = ydata * np.log(lambda_i) - lambda_i
+    lnL = np.sum(likelihood, axis = 1)
+    return -lnL
+
+def lnP(p):
+    # log prior likelihood for a parameter p. let's do a flat prior, where
+    # the values can't be negative.
+    ln_P = np.zeros(p.shape[0])
+    ln_P[np.any(p < 0, axis=1)] = -np.inf 
+    return ln_P
+
+def metropolis_hastings(ydata, edges, func, p_start, lnL, lnP, n_walkers, n_steps, filename):
+    n_param = len(p_start)
+    edges1 = edges_to_bins(edges)
+
+    p = np.zeros((n_walkers, n_steps, n_param))
+    p_init = np.linspace(p_start * 0.8, p_start * 1.2, n_walkers)
+    
+    p[:, 0, :] = p_init
+    p[:, 0, 1] = np.ones_like(p[:,0,1])*p_start[1]
+
+    y_list = rng_float(173937241, n_steps*n_walkers, 0, 1).reshape(n_walkers, n_steps)
+    acceptance_list = np.zeros(n_steps)                                          
+    for i in range(n_steps-1):
+        p_prop = q(p[:, i, :])
+
+        lnpi_i = lnL(ydata, edges1, func, p[:, i, :]) + lnP(p[:, i, :])  
+        lnpi_prop = lnL(ydata, edges1, func, np.abs(p_prop)) + lnP(p_prop)
+
+        log_L_ratio = lnpi_prop-lnpi_i
+        y = y_list[:, i]
+        
+        accept = log_L_ratio >= 0.5*np.log(y)
+        acceptance_list[i] = np.sum(accept)/len(accept)
+        p[:, i + 1, :] = np.where(accept[:, None], p_prop, p[:, i, :]) 
+
+        if i % 100 == 0:
+            print(f'now at step {i}. {n_steps-i} remaining.')
+    # plt.close()
+    # plot_mcmc(p, filename=f'my_mcmc_{filename}.pdf')
+    print('acceptance rate:', np.mean(acceptance_list))
+    # discard the burn-in:
+    p_full = p.copy()
+    p = p[:, 100:, :]
+    return p, p_full
+
+def plot_mcmc(p, filename='my_mcmc_result.pdf'):
+    n_param = 5
+    param_names = ['A', 'Nsat', 'a', 'b', 'c']
+    fig, ax1 = plt.subplots(n_param, 1,figsize=(6.4,8.0))
+    for i in range(n_param):
+        for j in range(p.shape[0]):
+            ax1[i].plot(p[j, :, i], alpha=0.2, color='black')
+            ax1[i].set(xlabel='step', ylabel=f'{param_names[i]}')
+    plt.tight_layout()
+    plt.savefig(filename, dpi=600)
+    plt.close()
+
+def fit_data_set_mcmc(filename, initial_guess):
+    print('-----------------------')
+    print('fitting data set', filename,'...')
+    xmin, xmax = 1e-4, 4
+    radius, nhalo = readfile(filename)
+    N_per_halo, edges, Nsat = bin_data(radius, nhalo, xmin, xmax)
+    edges1 = edges.copy()
+    edges2 = edges_to_bins(edges1)
+    bin_centers = (edges[:-1] + edges[1:]) * 0.5
+    
+    # # plot the binned data
+    # plt.close()
+    # plt.stairs(N_per_halo, edges, label='binned_data')
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.xlabel('bins (log)')
+    # plt.ylabel(f'Counts per halo (log)')
+    # plt.title(f'Loglog plot for {filename}, Nsat = {Nsat}')
+    
+    # create the input parameters.
+    A = get_A(bin_centers, Nsat, *initial_guess)
+    params_i = np.array([A, Nsat, *initial_guess])
+
+    # remove bins that are zero
+    nonzero_mask = N_per_halo > 0
+    bin_centers_clipped = bin_centers[nonzero_mask]
+    N_per_halo_clipped = N_per_halo[nonzero_mask]
+    edges_clipped = edges[np.append(nonzero_mask, True)]
+
+    # the actual fitting
+    p, p_full = metropolis_hastings(N_per_halo_clipped, edges_clipped, N_integrated, params_i,
+                           lnL, lnP, n_walkers = 50, n_steps = 300, filename = filename)
+    
+    p_avg = np.mean(p, axis=(0, 1))
+    edges = edges_to_bins(edges_clipped)
+
+    # # Test the fit
+    # test_x = 10**np.linspace(np.log10(xmin), np.log10(xmax), 100)
+    # plt.plot(bin_centers, N_integrated(edges2, *params_i), label='initial guess')
+    # plt.plot(bin_centers, N_integrated(edges2, *p), label='fit')
+    # plt.ylim((1e-5, 1e2))
+    # plt.legend()
+    # plt.show()
+    # plt.close()
+
+    # check the minimum log likelihood value
+    lnL_min = lnL(N_per_halo_clipped, edges, N_integrated, np.array([p_avg]))
+    
+    return N_per_halo, p_avg, lnL_min, bin_centers, edges1, p_full
+
 # Plot 1c (same code as above)
-fig1c, ax = plt.subplots(3,2,figsize=(6.4,8.0))
+fig1b, ax = plt.subplots(3,2,figsize=(6.4,10.0))
+datalist = ['satgals_m11.txt', 'satgals_m12.txt', 'satgals_m13.txt', 'satgals_m14.txt', 'satgals_m15.txt']
+ylims = [(1e-5, 1), (1e-4, 1e1), (1e-4, 1e2), (1e-3, 1e2), (1e-1, 1e4)]
+
+p_list_c = np.zeros((5, 5))
+min_logL_list_c = np.zeros(5)
+p_full_list = []
 for i in range(5):
-    Nsat = 100 # replace by actual appropriate number for mass bin i
-    x_radii = np.random.rand(10000) * (xmax-xmin) # replace by actual data for mass bin i
-    Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for mass bin i integrated per radial bin
-    binned_data=np.histogram(x_radii,bins=edges)[0]/Nsat
+    init_guess = np.array([1.6, 0.9, 2.5])
+    N_per_halo, p, lnL_min, bin_centers, edges1, p_full = fit_data_set_mcmc(datalist[i], init_guess)
+    edges = edges_to_bins(edges1)
+    A_initial = get_A(bin_centers, Nsat, *init_guess)
+    p_initial = [A_initial, Nsat, *init_guess]
     row=i//2
     col=i%2
-    ax[row,col].step(edges[:-1], binned_data, where='post', label='binned data')
-    ax[row,col].step(edges[:-1], Ntilda, where='post', label='best-fit profile')
-    ax[row,col].set(yscale='log', xscale='log', xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
+    
+    # export some values
+    p_list_c[i] = p
+    min_logL_list_c[i] = lnL_min
+    p_full_list.append(p_full)
+    # plot_mcmc(p_full)
+    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p) - N_per_halo, where='post', label='residuals')
+    ax[row,col].step(edges1[:-1], N_per_halo, where='post', label='binned data')
+    # ax[row,col].step(bin_centers, N(bin_centers, *p), where='post', label='best-fit N')
+    ax[row,col].step(edges1[:-1], N_integrated(edges, *p), where='post', label='best-fit integrated N')
+    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p_initial), where='post', label='initial guess')
+    ax[row,col].set(yscale='log', xscale='log', ylim = ylims[i], xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
+    print(f'------------------------------\nFor file {datalist[i]}:')
+    print(f'Using MCMC to fit a Poisson likelihood')
+    print(f'a = {p[2]}\nb = {p[3]}\nc = {p[4]}')
+    print(f'A = {p[0]}')
+    print(f'Minimum log likelihood value = {lnL_min}')
+
 ax[2,1].set_visible(False)
 plt.tight_layout()
 handles,labels=ax[2,0].get_legend_handles_labels()
 plt.figlegend(handles, labels, loc=(0.65,0.15))
 plt.savefig('my_solution_1c.png', dpi=600)
 
+for i in range(5):
+    plot_mcmc(p_full_list[i], filename=f'{datalist[i]}.pdf')
+# 1D...... help
 
-# BONUS: Monte Carlo resampled fits (1e)
-num_samples = 10 #replace by how many resamplings you can draw/fit in reasonable time
-fig1e, ax = plt.subplots()
-Nsat = 100 # replace by actual appropriate number for mass bin i
-x_radii = np.random.rand(10000) * (xmax-xmin) # replace by actual data for chosen mass bin
-binned_data=np.histogram(x_radii,bins=edges)[0]/Nsat
-ax.step(edges[:-1], binned_data, where='post', label='binned data')
-Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for chosen mass bin integrated per radial bin
-ax.step(edges[:-1], Ntilda, where='post', label='best-fit profiles', color="C1")
-for i in range(num_samples):
-    Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for chosen mass bin integrated per radial bin
-    ax.step(edges[:-1], Ntilda, where='post', color="C1")
-# Also plot the mean or median fitted profile here
-ax.set(yscale='log', xscale='log', xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{...}} M_{{\\odot}}/h$")
-plt.legend()
-plt.savefig('my_solution_1e_chisq.png', dpi=600)
+# we need continuous E, which is just N_integrated i think.
 
-num_samples = 10 #replace by how many resamplings you can draw/fit in reasonable time
-fig1e, ax = plt.subplots()
-Nsat = 100 # replace by actual appropriate number for mass bin i
-x_radii = np.random.rand(10000) * (xmax-xmin) # replace by actual data for chosen mass bin
-binned_data=np.histogram(x_radii,bins=edges)[0]/Nsat
-ax.step(edges[:-1], binned_data, where='post', label='binned data')
-Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for chosen mass bin integrated per radial bin
-ax.step(edges[:-1], Ntilda, where='post', label='best-fit profiles', color="C2")
-for i in range(num_samples):
-    Ntilda = np.sort(np.random.rand(n_bins)) * (xmax-xmin) # replace by fitted model for chosen mass bin integrated per radial bin
-    ax.step(edges[:-1], Ntilda, where='post', color="C2")
-# Also plot the mean or median fitted profile here
-ax.set(yscale='log', xscale='log', xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{...}} M_{{\\odot}}/h$")
-plt.legend()
-plt.savefig('my_solution_1e_poisson.png', dpi=600)
+def N_integrated_unnormalized(edges, A, Nsat, a, b, c):
+    result = np.zeros_like(edges[:,0])
+    for i in range(len(result)):
+        xmin, xmax = edges[i]
+        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] 
+    return result 
+
+def bin_data_unnormalized(radius, nhalo, xmin, xmax):
+    nhaloTh = 1 / nhalo
+    edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 51)
+    binned_data, edges = np.histogram(radius, bins=edges)
+    binwidths = np.diff(edges)
+    N_binned = binned_data # don't normalize now
+
+    # average Nsat
+    Nsat = len(radius) / nhalo
+    return N_binned, edges, Nsat
+
+def G_test(O, E):
+    return 2*np.sum(O * np.log(O) - np.log(E))
+
+def chi2_dist(x, k):
+    from scipy.special import gammainc
+    return x**(k/2 -1) * np.exp(-x/2) / (2**(k/2) * gammainc(k/2))
+
+for i in range(5):
+    p_b = p_list_b[i]
+    min_chi2_b = min_chi2_list_b[i]
+    p_c = p_list_c[i]
+    min_logL = min_logL_list_c[i]
+
+    radius, nhalo = readfile(datalist[i])
+    O, edges, Nsat = bin_data_unnormalized(radius, nhalo, 1e-4, 4)
+
+    # remove bins that are zero
+    nonzero_mask = O > 0
+    O_clipped = O[nonzero_mask]
+    edges_clipped = edges[np.append(nonzero_mask, True)]
+    edges1 = edges_to_bins(edges_clipped)
+
+    k = len(edges[:-1]) - len(p_b)
+    E_b = N_integrated_unnormalized(edges1, *p_b)
+    E_c = N_integrated_unnormalized(edges1, *p_c)
+
+    G_b = G_test(O_clipped, E_b)
+    G_c = G_test(O_clipped, E_c)
+
+
