@@ -7,25 +7,26 @@ Our script is given by:
 
 \subsection{1a. Finding the maximum of the number density satellite profile}
 The relevant code for this exercise is given here:
-\lstinputlisting[language=Python, firstline=4, lastline=67]{Satellites2.py}
+\lstinputlisting[language=Python, firstline=7, lastline=152]{Satellites2.py}
 
 In order to find a the maximum of $N(x)$, we first bracket the root using the find bracket function. As two initial guesses, we give 1 and 5, corresponding to the range where we expect to find the maximum by visual inspection. After finding a three-point bracket, we use golden section search to find a maximum (the minimum of the negative function, technically). In the output below, $x$ and $N(x)$ at the minimum are presented.
 
-
-\lstinputlisting[firstline=1, lastline=2]{satellite_output.txt}
+\lstinputlisting[firstline=1, lastline=4]{satellite_output.txt}
 
 \subsection{1b. Fitting a chi-squared using Levenberg-Marquardt}
 For this subquestion, we bin our radial data and use a Levenberg-Marquardt fitting routine to fit a chi-squared on the data. The relevant code is given below:
-\lstinputlisting[language=Python, firstline=69, lastline=188]{Satellites.py}
+\lstinputlisting[language=Python, firstline=155, lastline=370]{Satellites2.py}
 
-We bin our data in log space, so that the bins are of equal width when we plot them and the function in log space. We choose the range from INSERT RANGE. We take 40 radial bins.
+We bin our data in log space, so that the bins are of equal width when we plot them and the function in log space. We choose the range from $[10^{-4}, 5]$. We take 40 radial bins.
 
-We bin our data using the bin_data function, which normalizes the bins by the amount of halos as well as the bin widths. Importantly, this means that the function we fit will also have to be normalized to this.
+We bin our data using the bin$\_$data function, which normalizes the bins by the amount of halos as well as the bin widths. Importantly, this means that the function we fit will also have to be normalized to this.
 
+The output is given below:
+\lstinputlisting[firstline=5, lastline=58]{satellite_output.txt}
 
 \begin{figure}[h!]
 \label{fig:1b}
-\caption{In red, the analytical distribution that we are supposed to sample from is plotted. The blue bars correspond to the logarithmic bins given, and their heights are the number of samples per bin. The bars follow the distribution nicely.}
+\caption{The fits produced by chi-squared minimization using Levenberg-Marquardt.}
 \centering
 \includegraphics[width=0.7\textwidth]{my_solution_1b.png}
 \end{figure}
@@ -35,29 +36,44 @@ The fits can be seen above. As we can see, the fit isn't exactly right but it ge
 \subsection{1c. Minimizing the Poisson log-likelihood}
 In this subquestion, we write down the Poisson log-likelihood, and use the Metropolis-Hastings algorithm to perform Monte Carlo Markov Chain log likelihood minimization. The relevant code is given below:
 
-\lstinputlisting[language=Python, firstline=189, lastline=207]{Satellites.py}
+\lstinputlisting[language=Python, firstline=371, lastline=579]{Satellites2.py}
 
 The fits produced by this method are given below:
 
+\lstinputlisting[firstline=59, lastline=128]{satellite_output.txt}
+
+\begin{figure}[h!]
+    \label{fig:1c}
+    \caption{The resulting fits after minimization of the Poisson log likelihood. As one can see, the first are completely wrong.}
+    \centering
+    \includegraphics[width=0.7\textwidth]{my_solution_1c.png}
+    \end{figure}
+
 Sadly, our model does not converge properly. To give an idea, we plot the walkers for the MCMC in this figure. As apparent, many walkers seem stuck in their original position or get stuck rather quickly. I'm not sure what the reason is precisely, though it might have something to do with the way I set up the likelihood. We use a flat prior, where negative values are forbidden for A, a, b, c. I'm using the same function as previously.
+
+In the figure, we see that there actually is a small portion of the walkers that seems to find its way to some minimum. Sadly, I was not able to figure out precisely why some of them stay stuck. I think a possible culprit, in addition to the likelihood function, is the q function that spans the entire space.
 
 We use 100 walkers that each take 500 steps. In my plots, the walkers stabilized after about 100 steps, so in calculating the mean of the posterior distribution, this burn-in phase is removed.
 
 \begin{figure}[h!]
-\label{fig:1c}
-\caption{We see that the number of galaxies within a radius is strictly increasing, which means the array is sorted correctly.}
+\label{fig:1c2}
+\caption{The Metropolis-Hastings walkers for the file satgals m12.txt. We see that a small portion of the walkers seems to make a "normal" MCMC progression towards somewhere that might be a minimum. But, mostly the walkers just stay where they are or go completely off the rails.}
 \centering
-\includegraphics[width=0.7\textwidth]{my_solution_1c.png}
+\includegraphics[width=0.7\textwidth]{satgals_m12.txt.pdf}
 \end{figure}
 
-\subsection{1d. Derivative of n(x)}
-In this section, we calculate the derivative $d n(x)/dx$ at $x=1$ numerically. We used Ridder's algorithm to find the derivative, as seen in the code below.
+\subsection{1d. G-testing}
+In this section, we perform a G test on the fits obtained in the previous two subquestions. The code is given below:
 
-\lstinputlisting[language=Python, firstline = 209, lastline = 240]{Satellites.py}
+\lstinputlisting[language=Python, firstline = 580, lastline = 639]{Satellites2.py}
 
-The output is given here:
+The output is given here. As apparent, all the P values are exactly 1. Something went wrong in the G testing, most likely due to minimization.
 
-\lstinputlisting[firstline=3, lastline = 5]{satellite_output.txt}
+\lstinputlisting[firstline=129, lastline = 148]{satellite_output.txt}
+
+We make a few important changes. We previously fitted a model using the normalized bins, and normalized our model as well. Here, the true distribution must be put into our test as integer values, so we unnormalize our integrated function to make them match.
+
+For each dataset, we calculate the degrees of freedom as: $k = N - M$ with $N$ the number of data points (so the number of bins, which is the same as in b and c), and $M$ the number of parameters. This number is 3, as a, b and c are the three independent parameters that are fitted. A does not count, as it is fully constrained by the other parameters.
 
 
 

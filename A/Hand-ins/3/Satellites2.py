@@ -88,7 +88,6 @@ def solve_system(func, a, b, c, *args):
 def find_bracket(func, brac, *args):
     a = brac[0]
     b = brac[1]
-  
 
     if func(a, *args) < func(b, *args):
         print('swapped a and b')
@@ -99,8 +98,8 @@ def find_bracket(func, brac, *args):
     while func(c, *args) < func(b, *args):
         # let's fit a parabola. 
         p, q, r = solve_system(func, a, b, c, *args)
-        # plt.plot(x, p*x*x + q*x + r)
         d = -q/(2*p)
+
         if func(d, *args) < func(c, *args):
             return [b, d, c]
         elif func(d, *args) > func(b, *args):
@@ -146,7 +145,7 @@ def negative_N(xa, A, Nsat, a, b, c):
     return -1 * N(xa, A, Nsat, a, b, c)
 
 brac = [1, 5]
-brac = find_bracket(negative_N, brac, A, Nsat, a, b, c)
+brac = find_bracket(negative_N, brac, A, Nsat, a, b, c) # use negative N, as we're minimizing.
 
 max_x = golden_section(negative_N, brac, A, Nsat, a, b, c)
 
@@ -215,16 +214,15 @@ def bin_data(radius, nhalo, xmin, xmax):
     edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 51)
     binned_data, edges = np.histogram(radius, bins=edges)
     binwidths = np.diff(edges)
-    N_per_halo = binned_data * nhaloTh / binwidths # normalize by dividing by the bin widths 
+    N_per_halo = binned_data * nhaloTh / binwidths # normalize by dividing by the bin widths and the number of halos
 
     # average Nsat
     Nsat = len(radius) / nhalo
     return N_per_halo, edges, Nsat
 
 def edges_to_bins(edges):
-    edges = np.asarray(edges)
+    edges = np.asarray(edges) # function to make edges usable for romberg_interval
     return np.column_stack((edges[:-1], edges[1:]))
-
 
 def N_integrated(edges, A, Nsat, a, b, c):
     result = np.zeros_like(edges[:,0])
@@ -232,7 +230,7 @@ def N_integrated(edges, A, Nsat, a, b, c):
     inverse_binwidths = 1 / binwidths[:, 0]
     for i in range(len(result)):
         xmin, xmax = edges[i]
-        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] * inverse_binwidths[i]
+        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] * inverse_binwidths[i] #normalize by the bin widths also
     return result 
 
 def z(x_data, y_data, edges, sigma, model, *args):
@@ -270,7 +268,6 @@ def levenberg_marquardt(x_data, y_data, edges, initial_guess, sigma, func, metri
     j = 0
     p = initial_guess
     while True:
-        # print(metric)
         alpha = calculate_alpha(x_data, y_data, p, sigma, lamb)
         beta = calculate_beta(x_data, y_data, bins, p, sigma, func, weight_func)
         prev_p = np.copy(p)
@@ -301,27 +298,18 @@ def levenberg_marquardt(x_data, y_data, edges, initial_guess, sigma, func, metri
             return p, j
 
 def fit_data_set(filename, initial_guess, acc=0.000001):
-    xmin, xmax = 1e-4, 4
+    xmin, xmax = 1e-4, 5
     radius, nhalo = readfile(filename)
     N_per_halo, edges, Nsat = bin_data(radius, nhalo, xmin, xmax)
     edges1 = edges.copy()
-    edges2 = edges_to_bins(edges1)
     bin_centers = (edges[:-1] + edges[1:]) * 0.5
-    
-    # # plot the binned data
-    # plt.stairs(N_per_halo, edges, label='binned_data')
-    # plt.xscale('log')
-    # plt.yscale('log')
-    # plt.xlabel('bins (log)')
-    # plt.ylabel(f'Counts per halo (log)')
-    # plt.title(f'Loglog plot for {filename}, Nsat = {Nsat}')
     
     # create the input parameters.
     A = get_A(bin_centers, Nsat, *initial_guess)
     params_i = [A, Nsat, *initial_guess]
     sigma = np.sqrt(N_per_halo)
 
-    # remove bins that are zero
+    # remove bins that are zero. We're throwing away data here, but i couldn't figure out how else to handle the zero bins.
     nonzero_mask = N_per_halo > 0
     bin_centers_clipped = bin_centers[nonzero_mask]
     N_per_halo_clipped = N_per_halo[nonzero_mask]
@@ -338,27 +326,12 @@ def fit_data_set(filename, initial_guess, acc=0.000001):
                              acc=acc)
     edges = edges_to_bins(edges_clipped)
 
-    # # Test the fit
-    # test_x = 10**np.linspace(np.log10(xmin), np.log10(xmax), 100)
-    # plt.plot(bin_centers, N_integrated(edges2, *params_i), label='initial guess')
-    # plt.plot(bin_centers, N_integrated(edges2, *p), label='fit')
-    # plt.ylim((1e-5, 1e2))
-    # plt.legend()
-    # plt.show()
-    # plt.close()
-
     # See what the minimum chi squared is
     chi2_min = chi_squared(bin_centers_clipped, N_per_halo_clipped, edges, sigma_clipped, N_integrated, *p)
 
     return Nsat, N_per_halo, p, chi2_min, bin_centers, edges1
 
-
-
-#Call this function as: 
-# Nsat, N_per_halo, p, chi2_min, bin_centers, edges = fit_data_set('satgals_m12.txt', [2.4, 0.25, 1.6], acc=1e-40)
-
 # Plot of binned data with the best fit (question 1b.4 and 1c)
-# As always, feel free to replace by your own plotting routines if you want
 
 fig1b, ax = plt.subplots(3,2,figsize=(6.4,8.0))
 datalist = ['satgals_m11.txt', 'satgals_m12.txt', 'satgals_m13.txt', 'satgals_m14.txt', 'satgals_m15.txt']
@@ -374,14 +347,12 @@ for i in range(5):
     row=i//2
     col=i%2
 
-    p_list_b[i] = p
+    p_list_b[i] = p # save em for later
     min_chi2_list_b[i] = chi2_min
     
-    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p) - N_per_halo, where='post', label='residuals')
+    
     ax[row,col].step(edges1[:-1], N_per_halo, where='post', label='binned data')
-    # ax[row,col].step(bin_centers, N(bin_centers, *p), where='post', label='best-fit N')
     ax[row,col].step(edges1[:-1], N_integrated(edges, *p), where='post', label='best-fit integrated N')
-    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p_initial), where='post', label='initial guess')
     ax[row,col].set(yscale='log', xscale='log', ylim = ylims[i], xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
     print(f'------------------------------\nFor file {datalist[i]}:')
     print('Using Levenberg-Marquardt to fit a chi squared')
@@ -468,7 +439,6 @@ def multivariate_normal(mean, sigma):
     return samples
 
 def q(p):
-    n_walkers = p.shape
     sigma = np.ones_like(p) * 0.1
     new_p = multivariate_normal(p, sigma)
     # ensure Nsat stays the same
@@ -517,12 +487,13 @@ def metropolis_hastings(ydata, edges, func, p_start, lnL, lnP, n_walkers, n_step
 
         if i % 100 == 0:
             print(f'now at step {i}. {n_steps-i} remaining.')
-    # plt.close()
-    # plot_mcmc(p, filename=f'my_mcmc_{filename}.pdf')
+
     print('acceptance rate:', np.mean(acceptance_list))
+
     # discard the burn-in:
     p_full = p.copy()
     p = p[:, 100:, :]
+
     return p, p_full
 
 def plot_mcmc(p, filename='my_mcmc_result.pdf'):
@@ -540,21 +511,12 @@ def plot_mcmc(p, filename='my_mcmc_result.pdf'):
 def fit_data_set_mcmc(filename, initial_guess):
     print('-----------------------')
     print('fitting data set', filename,'...')
-    xmin, xmax = 1e-4, 4
+
+    xmin, xmax = 1e-4, 5
     radius, nhalo = readfile(filename)
     N_per_halo, edges, Nsat = bin_data(radius, nhalo, xmin, xmax)
     edges1 = edges.copy()
-    edges2 = edges_to_bins(edges1)
     bin_centers = (edges[:-1] + edges[1:]) * 0.5
-    
-    # # plot the binned data
-    # plt.close()
-    # plt.stairs(N_per_halo, edges, label='binned_data')
-    # plt.xscale('log')
-    # plt.yscale('log')
-    # plt.xlabel('bins (log)')
-    # plt.ylabel(f'Counts per halo (log)')
-    # plt.title(f'Loglog plot for {filename}, Nsat = {Nsat}')
     
     # create the input parameters.
     A = get_A(bin_centers, Nsat, *initial_guess)
@@ -562,7 +524,6 @@ def fit_data_set_mcmc(filename, initial_guess):
 
     # remove bins that are zero
     nonzero_mask = N_per_halo > 0
-    bin_centers_clipped = bin_centers[nonzero_mask]
     N_per_halo_clipped = N_per_halo[nonzero_mask]
     edges_clipped = edges[np.append(nonzero_mask, True)]
 
@@ -572,15 +533,6 @@ def fit_data_set_mcmc(filename, initial_guess):
     
     p_avg = np.mean(p, axis=(0, 1))
     edges = edges_to_bins(edges_clipped)
-
-    # # Test the fit
-    # test_x = 10**np.linspace(np.log10(xmin), np.log10(xmax), 100)
-    # plt.plot(bin_centers, N_integrated(edges2, *params_i), label='initial guess')
-    # plt.plot(bin_centers, N_integrated(edges2, *p), label='fit')
-    # plt.ylim((1e-5, 1e2))
-    # plt.legend()
-    # plt.show()
-    # plt.close()
 
     # check the minimum log likelihood value
     lnL_min = lnL(N_per_halo_clipped, edges, N_integrated, np.array([p_avg]))
@@ -608,12 +560,8 @@ for i in range(5):
     p_list_c[i] = p
     min_logL_list_c[i] = lnL_min
     p_full_list.append(p_full)
-    # plot_mcmc(p_full)
-    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p) - N_per_halo, where='post', label='residuals')
     ax[row,col].step(edges1[:-1], N_per_halo, where='post', label='binned data')
-    # ax[row,col].step(bin_centers, N(bin_centers, *p), where='post', label='best-fit N')
     ax[row,col].step(edges1[:-1], N_integrated(edges, *p), where='post', label='best-fit integrated N')
-    # ax[row,col].step(edges1[:-1], N_integrated(edges, *p_initial), where='post', label='initial guess')
     ax[row,col].set(yscale='log', xscale='log', ylim = ylims[i], xlabel='x', ylabel='N', title=f"$M_h \\approx 10^{{{11+i}}} M_{{\\odot}}/h$")
     print(f'------------------------------\nFor file {datalist[i]}:')
     print(f'Using MCMC to fit a Poisson likelihood')
@@ -631,21 +579,19 @@ for i in range(5):
     plot_mcmc(p_full_list[i], filename=f'{datalist[i]}.pdf')
 # 1D...... help
 
-# we need continuous E, which is just N_integrated i think.
+# we need continuous E, and discrete O. Undo the normalization.
 
-def N_integrated_unnormalized(edges, A, Nsat, a, b, c):
+def N_integrated_unnormalized(edges, A, Nsat, a, b, c, nhalo):
     result = np.zeros_like(edges[:,0])
     for i in range(len(result)):
         xmin, xmax = edges[i]
-        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] 
+        result[i] = romberg_interval(N, xmin, xmax, 5, A, Nsat, a, b, c)[0] # * nhalo
     return result 
 
 def bin_data_unnormalized(radius, nhalo, xmin, xmax):
-    nhaloTh = 1 / nhalo
     edges = 10**np.linspace(np.log10(xmin), np.log10(xmax), 51)
     binned_data, edges = np.histogram(radius, bins=edges)
-    binwidths = np.diff(edges)
-    N_binned = binned_data # don't normalize now
+    N_binned = binned_data * np.diff(edges)# don't normalize now
 
     # average Nsat
     Nsat = len(radius) / nhalo
@@ -655,8 +601,12 @@ def G_test(O, E):
     return 2*np.sum(O * np.log(O) - np.log(E))
 
 def chi2_dist(x, k):
-    from scipy.special import gammainc
-    return x**(k/2 -1) * np.exp(-x/2) / (2**(k/2) * gammainc(k/2))
+    from scipy.special import gamma
+    return x**(k/2 -1) * np.exp(-x/2) / (2**(k/2) * gamma(k/2))
+
+def chi2_cdf(x, k):
+    from scipy.special import gamma, gammainc
+    return gammainc(k/2, x/2) / gamma(k/2)
 
 for i in range(5):
     p_b = p_list_b[i]
@@ -665,7 +615,7 @@ for i in range(5):
     min_logL = min_logL_list_c[i]
 
     radius, nhalo = readfile(datalist[i])
-    O, edges, Nsat = bin_data_unnormalized(radius, nhalo, 1e-4, 4)
+    O, edges, Nsat = bin_data_unnormalized(radius, nhalo, 1e-4, 5)
 
     # remove bins that are zero
     nonzero_mask = O > 0
@@ -673,11 +623,21 @@ for i in range(5):
     edges_clipped = edges[np.append(nonzero_mask, True)]
     edges1 = edges_to_bins(edges_clipped)
 
-    k = len(edges[:-1]) - len(p_b)
-    E_b = N_integrated_unnormalized(edges1, *p_b)
-    E_c = N_integrated_unnormalized(edges1, *p_c)
+    k = len(edges[:-1]) - 3 # three fitted parameters: a, b, c
+    E_b = N_integrated_unnormalized(edges1, *p_b, nhalo)
+    E_c = N_integrated_unnormalized(edges1, *p_c, nhalo)
 
     G_b = G_test(O_clipped, E_b)
     G_c = G_test(O_clipped, E_c)
+
+    Q_b = 1 - chi2_cdf(G_b, k)
+    Q_c = 1 - chi2_cdf(G_c, k)
+
+    print('-------------------------')
+    print(f'for file {datalist[i]}:')
+    print(f'chi2: G = {G_b}, Q = {Q_b}')
+    print(f'lnL: G = {G_c}, Q = {Q_c}')
+
+
 
 
